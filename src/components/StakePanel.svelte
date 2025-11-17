@@ -26,6 +26,8 @@
   import { getUserStakingData, getGlobalStats } from '@/lib/indexer';
   import { STAKING_ADDRESS } from '@/lib/contract';
 
+  import WalletConnect from '@components/web3/WalletConnect.svelte';
+
   const LOCK_OPTIONS = [1, 3, 6, 12];
   const DEFAULT_LOCK = 6;
   const readOnlyStaking = stakingContract();
@@ -302,7 +304,7 @@
   }
 </script>
 
-<h1>Potentials Staking</h1>
+<h1 class="sr-only">Potentials Staking</h1>
 
 <section class="transparent-container">
   <h5>Select NFTs, choose a lock, and stake them together.</h5>
@@ -484,8 +486,10 @@
       {/if}
     </div>
   {:else}
-    <p class="validation">
-      Sign in with your web3 wallet to load Potentials NFTs
-    </p>
+    <WalletConnect
+      buttonClassName="cta"
+      signInLabel="Sign In With Web3 Wallet"
+    />
+    <p class="validation">Connect your web3 wallet to load Potentials NFTs</p>
   {/if}
 </section>

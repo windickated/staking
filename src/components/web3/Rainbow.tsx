@@ -34,6 +34,11 @@ export const wagmiConfig = getDefaultConfig({
 
 const queryClient = new QueryClient();
 
+type RainbowProps = {
+  buttonClassName?: string;
+  signInLabel?: string;
+};
+
 /* ------------------------------------------------------------------ */
 /* 2.  Provider wrapper                                               */
 /* ------------------------------------------------------------------ */
@@ -82,7 +87,10 @@ function useSyncStores() {
 /* ------------------------------------------------------------------ */
 /* 4.  Custom Connect / Account button                                */
 /* ------------------------------------------------------------------ */
-const RainbowConnectInner: FC = () => {
+const RainbowConnectInner: FC<RainbowProps> = ({
+  buttonClassName = 'rainbow-btn',
+  signInLabel = 'Sign In',
+}) => {
   useSyncStores();
 
   return (
@@ -101,22 +109,22 @@ const RainbowConnectInner: FC = () => {
 
         if (!connected) {
           return (
-            <button className="rainbow-btn" onClick={openConnectModal}>
-              Sign&nbsp;In
+            <button className={buttonClassName} onClick={openConnectModal}>
+              {signInLabel}
             </button>
           );
         }
 
         if (chain.unsupported) {
           return (
-            <button className="rainbow-btn" onClick={openChainModal}>
+            <button className={buttonClassName} onClick={openChainModal}>
               Wrong&nbsp;network
             </button>
           );
         }
 
         return (
-          <button className="rainbow-btn" onClick={openAccountModal}>
+          <button className={buttonClassName} onClick={openAccountModal}>
             Sign&nbsp;Out
           </button>
         );
@@ -128,9 +136,9 @@ const RainbowConnectInner: FC = () => {
 /* ------------------------------------------------------------------ */
 /* 5.  Export ready‑to‑mount component                                */
 /* ------------------------------------------------------------------ */
-const Rainbow: FC = () => (
+const Rainbow: FC<RainbowProps> = (props) => (
   <Web3Providers>
-    <RainbowConnectInner />
+    <RainbowConnectInner {...props} />
   </Web3Providers>
 );
 

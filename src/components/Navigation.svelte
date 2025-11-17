@@ -1,11 +1,5 @@
 <script lang="ts">
-  import type { Action } from 'svelte/action';
-
-  import { createElement } from 'react';
-  import { createRoot } from 'react-dom/client';
-
-  import Rainbow from '@components/web3/Rainbow.tsx';
-
+  import WalletConnect from '@components/web3/WalletConnect.svelte';
   import Logo from '@components/icons/Logo.svelte';
 
   const clamp = 64; // px after which hiding can kick in
@@ -28,17 +22,6 @@
       ticking = false;
     });
   };
-
-  // Rainbow button (React) Mount helper used when wallet isn't connected yet.
-  const mountRainbow: Action<HTMLDivElement> = (node) => {
-    const root = createRoot(node);
-    root.render(createElement(Rainbow));
-    return {
-      destroy() {
-        root.unmount();
-      },
-    };
-  };
 </script>
 
 <svelte:window {onscroll} />
@@ -59,9 +42,8 @@
       Governance Hub
     </a>
   </div>
-  <div class="rainbow-slot" use:mountRainbow>
-    <button class="rainbow-btn" disabled> Loading... </button>
-  </div>
+
+  <WalletConnect />
 </nav>
 
 <style lang="scss">
