@@ -22,15 +22,6 @@ type TokenState = {
   selected: boolean;
 };
 
-// On-chain stake info normalization (used in fallbacks).
-type StakeInfo = {
-  tokenId: number;
-  startTime: number;
-  unlockTime: number;
-  lockMonths: number;
-  owner: string;
-};
-
 // Raw user snapshot from the indexer.
 type RawUser = {
   totalVotingPower: string;

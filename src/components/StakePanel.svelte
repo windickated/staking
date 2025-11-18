@@ -74,10 +74,10 @@
     dataStatus.set('loading');
 
     try {
-      // --- Temporary fallback: on-chain owned scan until we use Potentials API ---
+      // --- On-chain owned scan until we use Potentials API ---
       const ownedPromise = getOwnedTokenSet(addr as `0x${string}`);
       const owned = await ownedPromise;
-      // ---------------------------------------------------------------------------
+      // -------------------------------------------------------
 
       const [userData, globalSnapshot] = await Promise.all([
         getUserStakingData(addr),
@@ -104,7 +104,7 @@
         merged.set(token.tokenId, token);
       });
 
-      // --- Temporary fallback merge for owned-but-unstaked tokens ----------------
+      // --- Temporary fallback merge for owned-but-unstaked tokens ---
       owned.ids.forEach((tokenId) => {
         if (merged.has(tokenId)) return;
         merged.set(tokenId, {
@@ -117,7 +117,7 @@
           selected: false,
         });
       });
-      // ---------------------------------------------------------------------------
+      // ---------------------------------------------------------------
 
       const tokens = Array.from(merged.values()).sort(
         (a, b) => a.tokenId - b.tokenId,

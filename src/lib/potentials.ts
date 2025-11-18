@@ -24,13 +24,9 @@ const viemClient = createPublicClient({
   transport: http(RPC_URL),
 });
 
-export const readProvider = new ethers.JsonRpcProvider(RPC_URL, CHAIN_ID);
+const readProvider = new ethers.JsonRpcProvider(RPC_URL, CHAIN_ID);
 
-export const isAddress = (addr: string) => ethers.isAddress(addr);
-
-export function potentialsContract(
-  readerOrSigner?: ethers.Provider | ethers.Signer,
-) {
+function potentialsContract(readerOrSigner?: ethers.Provider | ethers.Signer) {
   const p = readerOrSigner ?? readProvider;
   return new ethers.Contract(POTENTIALS_ADDRESS, POTENTIALS_ABI, p);
 }
@@ -53,7 +49,7 @@ export async function setApprovalForAll(
   return await tx.wait();
 }
 
-export async function getOwnedTokenIds(
+async function getOwnedTokenIds(
   owner: `0x${string}`,
   totalSupply = 1000,
   batchSize = 100,

@@ -78,4 +78,3 @@ export const STAKING_ABI = [
 ] as const;
 
 export const POTENTIALS_ABI_VIEM = POTENTIALS_ABI as unknown as Abi;
-export const STAKING_ABI_VIEM = STAKING_ABI as unknown as Abi;
