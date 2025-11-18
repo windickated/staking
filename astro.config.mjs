@@ -5,7 +5,6 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import svelte from '@astrojs/svelte';
-import node from '@astrojs/node';
 import VitePWA from '@vite-pwa/astro';
 
 import { manifest, seoConfig } from './utils/seoConfig';
