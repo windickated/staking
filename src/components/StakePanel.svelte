@@ -308,6 +308,13 @@
     if (!value) return '0 pts/s';
     return `${value.toFixed(4)} pts/s`;
   }
+
+  // Date conversion utility
+  const convertDate = (timestamp: number) => {
+    return new Date(
+      (Number(timestamp) - 3 * 24 * 60 * 60) * 1000,
+    ).toLocaleDateString();
+  };
 </script>
 
 <h1 class="sr-only">Potentials Staking</h1>
@@ -316,24 +323,13 @@
 
 <section class="flex">
   {#if $connected}
-    <header class="flex pad pad-inline shad">
+    <header class="flex-row flex-wrap pad pad-inline shad fade-in">
       <h4>Potentials Staking</h4>
-      <span class="flex-row flex-wrap">
-        <RefreshSVG
-          onclick={onRefreshClick}
-          text={$busyStore === 'fetch' ? 'Fetching…' : 'Refresh'}
-          disabled={$busyStore === 'fetch'}
-        />
-        <ContractSVG
-          onclick={handleApprove}
-          text={approved
-            ? 'Approved'
-            : $busyStore === 'approve'
-              ? 'Approving…'
-              : 'Approve staking contract'}
-          disabled={approveDisabled}
-        />
-      </span>
+      <RefreshSVG
+        onclick={onRefreshClick}
+        text={$busyStore === 'fetch' ? 'Fetching…' : 'Refresh'}
+        disabled={$busyStore === 'fetch'}
+      />
     </header>
 
     <div class="panel container">
@@ -350,12 +346,12 @@
       {/if}
 
       {#if $userStats || $globalStats}
-        <div class="stats flex">
-          <article>
+        <div class="stats flex fade-in">
+          <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Your voting power</p>
             <h4>{formatBigInt($userStats?.totalVotingPower)}</h4>
           </article>
-          <article>
+          <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Current points</p>
             <h4>
               {formatPoints($userStats?.currentPoints)}
@@ -364,7 +360,7 @@
               </strong>
             </h4>
           </article>
-          <article>
+          <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Staked NFTs</p>
             <h4>
               {($userStats?.stakedNFTCount ?? 0).toLocaleString()}
@@ -373,11 +369,11 @@
         </div>
 
         <div class="stats flex">
-          <article>
+          <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Global voting power</p>
             <h4>{formatBigInt($globalStats?.totalVotingPower)}</h4>
           </article>
-          <article>
+          <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Total staked NFTs</p>
             <h4>
               {($globalStats?.totalStakedNFTs ?? 0).toLocaleString()}
@@ -387,17 +383,17 @@
       {/if}
 
       {#if availableCount}
-        <h5>
+        <h4>
           {availableCount} / {$myTokens.length} NFTs available for staking
-        </h5>
+        </h4>
       {:else if $myTokens.length}
-        <h5>All {$myTokens.length} NFTs are currently staked</h5>
+        <h4>All {$myTokens.length} NFTs are currently staked</h4>
       {/if}
 
       {#if $dataStatus === 'loading'}
         <span class="flex-row gap">
           <LoadingSVG />
-          <h5>Loading staking data…</h5>
+          <h5>Fetching owned Potentials…</h5>
         </span>
       {:else if $dataStatus === 'empty'}
         <p class="validation">No Potentials NFTs were found for this wallet</p>
@@ -406,12 +402,15 @@
           Data loaded, but no NFTs are currently available for staking
         </p>
       {:else}
-        <div class="flex-row flex-wrap gap">
+        <div class="nfts-wrapper flex-row flex-wrap gap fade-in">
           {#each $myTokens as token (token.tokenId)}
             <button
-              class="tile void-btn"
+              class="void-btn"
+              class:potential-tile={!token.isStaked &&
+                !token.selected &&
+                !$pausedStore}
               class:green-tile={token.selected}
-              class:potential-tile={token.isStaked || $pausedStore}
+              class:gray-tile={token.isStaked || $pausedStore}
               disabled={token.isStaked || $pausedStore}
               onclick={() => toggleSelection(token.tokenId, !token.selected)}
               aria-label={`Select token ${token.tokenId}`}
@@ -424,11 +423,11 @@
 
               <span class="tile-data">
                 {#if token.isStaked}
-                  <p>Staked at {token.stakedAt.toLocaleString()}</p>
-                  <p>Unlocks at {token.unlockTime.toLocaleString()}</p>
+                  <p>Staked at {convertDate(token.stakedAt)}</p>
+                  <p>Unlocks at {convertDate(token.unlockTime)}</p>
                 {:else}
                   <label class="lock-label">
-                    Available for Stake
+                    Lock period
                     <select
                       value={token.lockMonths}
                       disabled={token.isStaked || $pausedStore}
@@ -437,6 +436,7 @@
                           token.tokenId,
                           Number(event.currentTarget.value),
                         )}
+                      onclick={(e) => e.stopPropagation()}
                     >
                       {#each LOCK_OPTIONS as months}
                         <option value={months}>
@@ -448,17 +448,39 @@
                   </label>
                 {/if}
               </span>
+
+              {#if token.isStaked}
+                <p class="validation">Staked</p>
+              {:else if token.selected}
+                <p class="validation">Selected</p>
+              {:else}
+                <p class="validation">Available</p>
+              {/if}
             </button>
           {/each}
         </div>
 
-        <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
-          {#if $busyStore === 'stake'}
-            Staking…
-          {:else}
-            Stake selected NFTs ({selectionCount})
-          {/if}
-        </button>
+        <span class="flex-row flex-wrap">
+          <ContractSVG
+            onclick={handleApprove}
+            text={approved
+              ? 'Approved'
+              : $busyStore === 'approve'
+                ? 'Approving…'
+                : 'Approve staking contract'}
+            disabled={approveDisabled}
+          />
+          <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
+            {#if $busyStore === 'stake'}
+              Staking…
+            {:else}
+              Stake selected NFTs
+              {#if selectionCount}
+                ({selectionCount})
+              {/if}
+            {/if}
+          </button>
+        </span>
       {/if}
     </div>
   {:else}
@@ -489,7 +511,8 @@
   section {
     gap: 0;
     min-width: min(40rem, 95%);
-    @include auto-width;
+    width: 95%;
+    max-width: calc(15rem * 4 + 7rem); // 4 tiles per row + gaps
 
     .container {
       width: 100%;
@@ -507,19 +530,6 @@
 
       h4 {
         @include orange(1, text);
-      }
-
-      span {
-        width: 100%;
-      }
-
-      @include respond-up(tablet) {
-        flex-direction: row;
-        justify-content: space-between;
-
-        span {
-          width: auto;
-        }
       }
     }
 
@@ -558,6 +568,24 @@
         @include respond-up(tablet) {
           flex-direction: row;
           align-items: stretch;
+        }
+      }
+
+      .nfts-wrapper {
+        width: 100%;
+
+        button {
+          .validation {
+            color: inherit;
+          }
+
+          @include mobile-only {
+            width: 100%;
+
+            img {
+              height: 80vw;
+            }
+          }
         }
       }
     }
