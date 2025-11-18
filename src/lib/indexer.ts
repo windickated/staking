@@ -60,7 +60,7 @@ export async function getUserStakingData(
     User: RawUser[];
     StakedNFT: RawStakedNFT[];
     GlobalState: RawGlobalState[];
-  }>(query, { user: userAddress.toLowerCase() });
+  }>(query, { user: userAddress });
 
   const user = result.User[0];
   const globalState = result.GlobalState[0];

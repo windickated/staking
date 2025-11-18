@@ -5,7 +5,6 @@ import { SEO } from 'astro-seo';
 import { seoConfig } from '../../utils/seoConfig';
 
 import Navigation from '@components/Navigation.svelte';
-import Modal from '@components/utils/Modal.svelte';
 import ToastContainer from '@components/utils/ToastContainer.svelte';
 import Background from '@components/utils/Background.svelte';
 
@@ -84,7 +83,6 @@ const absoluteImageURL = image.startsWith('http')
   </head>
   <body>
     <ToastContainer client:idle />
-    <Modal client:idle />
 
     <main>
       <Navigation client:idle />

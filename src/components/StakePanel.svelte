@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { BrowserProvider } from 'ethers';
 
   import { setApprovalForAll, isApprovedForAll } from '@lib/potentials';
@@ -15,17 +14,7 @@
     busy as busyStore,
     isPaused as pausedStore,
   } from '@stores/web3.svelte';
-  import {
-    openStakeModal,
-    closeStakeModal,
-    setStakeModalRefresh,
-  } from '@stores/modal.svelte';
-  import {
-    stakingContract,
-    isPaused,
-    stakeTokens,
-    getUserStakes,
-  } from '@lib/staking';
+  import { stakingContract, isPaused, stakeTokens } from '@lib/staking';
   import { getUserStakingData, getGlobalStats } from '@lib/indexer';
   import { getOwnedTokenSet } from '@lib/potentials';
   import { STAKING_ADDRESS } from '@lib/contract';
@@ -77,18 +66,6 @@
     };
   }
 
-  function normalizeStakeInfo(info: StakeInfo): TokenState {
-    return {
-      tokenId: info.tokenId,
-      votingPower: 0,
-      lockMonths: info.lockMonths ?? DEFAULT_LOCK,
-      stakedAt: info.startTime,
-      unlockTime: info.unlockTime,
-      isStaked: true,
-      selected: false,
-    };
-  }
-
   // Refresh both user + global snapshots once per wallet load/refresh.
   async function loadStakingData(addr: string) {
     if (loadingData) return;
@@ -97,7 +74,7 @@
     dataStatus.set('loading');
 
     try {
-      // --- Temporary fallback: on-chain owned scan until indexer exposes holdings ---
+      // --- Temporary fallback: on-chain owned scan until we use Potentials API ---
       const ownedPromise = getOwnedTokenSet(addr as `0x${string}`);
       const owned = await ownedPromise;
       // ---------------------------------------------------------------------------
@@ -109,14 +86,6 @@
 
       // Stats can render immediately even while owner scan finishes.
       const stakedTokens = userData.stakedNFTs.map(normalizeToken);
-
-      // --- Temporary fallback: on-chain lookups until indexer returns user stakes ---
-      let fallbackStakes: TokenState[] = [];
-      if (!stakedTokens.length) {
-        const onchainStakes = await getUserStakes(addr as `0x${string}`);
-        fallbackStakes = onchainStakes.map(normalizeStakeInfo);
-      }
-      // ---------------------------------------------------------------------------
 
       userStats.set({
         totalVotingPower: userData.totalVotingPower,
@@ -135,11 +104,7 @@
         merged.set(token.tokenId, token);
       });
 
-      // --- Temporary fallback merge (remove when indexer reliable) ---------------
-      fallbackStakes.forEach((token) => {
-        if (merged.has(token.tokenId)) return;
-        merged.set(token.tokenId, token);
-      });
+      // --- Temporary fallback merge for owned-but-unstaked tokens ----------------
       owned.ids.forEach((tokenId) => {
         if (merged.has(tokenId)) return;
         merged.set(tokenId, {
@@ -312,7 +277,6 @@
       userStats.set(null);
       globalStats.set(null);
       dataStatus.set('idle');
-      closeStakeModal();
       pausedStore.set(false);
       return;
     }
@@ -323,11 +287,6 @@
   $effect(() => {
     $provider;
     refreshPausedState();
-  });
-
-  onMount(() => {
-    setStakeModalRefresh(loadStakingData);
-    return () => setStakeModalRefresh(null);
   });
 
   // Formatting helpers for the metric cards.
@@ -428,7 +387,11 @@
       {/if}
 
       {#if availableCount}
-        <h5>{selectionCount}/{availableCount} NFTs selected for staking</h5>
+        <h5>
+          {availableCount} / {$myTokens.length} NFTs available for staking
+        </h5>
+      {:else if $myTokens.length}
+        <h5>All {$myTokens.length} NFTs are currently staked</h5>
       {/if}
 
       {#if $dataStatus === 'loading'}
@@ -445,73 +408,58 @@
       {:else}
         <div class="flex-row flex-wrap gap">
           {#each $myTokens as token (token.tokenId)}
-            <article
-              class={`token-card ${token.selected ? 'selected' : ''} ${token.isStaked ? 'staked' : ''}`}
+            <button
+              class="tile void-btn"
+              class:green-tile={token.selected}
+              class:potential-tile={token.isStaked || $pausedStore}
+              disabled={token.isStaked || $pausedStore}
+              onclick={() => toggleSelection(token.tokenId, !token.selected)}
+              aria-label={`Select token ${token.tokenId}`}
             >
-              <div class="token-card-header">
-                <label class="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={token.selected}
-                    aria-label={`Select token ${token.tokenId}`}
-                    disabled={token.isStaked || $pausedStore}
-                    onchange={(event) =>
-                      toggleSelection(
-                        token.tokenId,
-                        event.currentTarget.checked,
-                      )}
-                  />
-                  <span>Select</span>
-                </label>
+              <img
+                src={`https://api.dgrslabs.ink/nft/image/${token.tokenId}`}
+                alt={`Potential #${token.tokenId}`}
+              />
+              <h5>Potential #{token.tokenId}</h5>
+
+              <span class="tile-data">
                 {#if token.isStaked}
-                  <span class="badge">Staked</span>
+                  <p>Staked at {token.stakedAt.toLocaleString()}</p>
+                  <p>Unlocks at {token.unlockTime.toLocaleString()}</p>
                 {:else}
-                  <span class="badge available">Available</span>
+                  <label class="lock-label">
+                    Available for Stake
+                    <select
+                      value={token.lockMonths}
+                      disabled={token.isStaked || $pausedStore}
+                      onchange={(event) =>
+                        updateLock(
+                          token.tokenId,
+                          Number(event.currentTarget.value),
+                        )}
+                    >
+                      {#each LOCK_OPTIONS as months}
+                        <option value={months}>
+                          {months}
+                          {months === 1 ? 'month' : 'months'}
+                        </option>
+                      {/each}
+                    </select>
+                  </label>
                 {/if}
-              </div>
-              <p class="token-id">Token #{token.tokenId}</p>
-              <p class="token-meta">
-                Voting power: {token.votingPower.toLocaleString()}
-              </p>
-              <label class="lock-label">
-                Lock duration
-                <select
-                  value={token.lockMonths}
-                  disabled={token.isStaked || $pausedStore}
-                  onchange={(event) =>
-                    updateLock(
-                      token.tokenId,
-                      Number(event.currentTarget.value),
-                    )}
-                >
-                  {#each LOCK_OPTIONS as months}
-                    <option value={months}>
-                      {months}
-                      {months === 1 ? 'month' : 'months'}
-                    </option>
-                  {/each}
-                </select>
-              </label>
-              <button
-                class="link-btn"
-                type="button"
-                onclick={() => openStakeModal(token.tokenId)}
-              >
-                View stake data
-              </button>
-            </article>
+              </span>
+            </button>
           {/each}
         </div>
+
+        <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
+          {#if $busyStore === 'stake'}
+            Staking…
+          {:else}
+            Stake selected NFTs ({selectionCount})
+          {/if}
+        </button>
       {/if}
-
-      <!-- <p class="helper-text">
-        Click “View stake data” on any NFT to inspect its lock, claim points
-        visibility, or unstake after unlock.
-      </p> -->
-
-      <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
-        {$busyStore === 'stake' ? 'Staking…' : 'Stake selected'}
-      </button>
     </div>
   {:else}
     <div class="container">

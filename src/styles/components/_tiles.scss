@@ -246,9 +246,9 @@
   @include white-txt(1);
   @include box-shadow;
 
-  &:hover:not(.loading-tile),
-  &:active:not(.loading-tile),
-  &:focus-visible:not(.loading-tile) {
+  &:hover:not(.loading-tile, :disabled),
+  &:active:not(.loading-tile, :disabled),
+  &:focus-visible:not(.loading-tile, :disabled) {
     @include dark-blue(1, text);
     @include blue(0.9, bg, bright);
     @include bright;

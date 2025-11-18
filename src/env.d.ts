@@ -1,8 +1,6 @@
 /// <reference path="../.astro/types.d.ts" />
 /// <reference types="astro/client" />
 
-// Centralized type definitions shared between the GraphQL client, stores, and UI.
-
 // Raw entities as they come from the HyperIndex GraphQL service.
 type RawStakedNFT = {
   tokenId: string;
