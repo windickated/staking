@@ -334,47 +334,47 @@
       {/if}
 
       {#if $userStats || $globalStats}
-        <div class="stats-grid">
-          <article class="stats-card">
-            <p class="label">Your voting power</p>
-            <p class="value">{formatBigInt($userStats?.totalVotingPower)}</p>
+        <div class="stats flex">
+          <article>
+            <p>Your voting power</p>
+            <h4>{formatBigInt($userStats?.totalVotingPower)}</h4>
           </article>
-          <article class="stats-card">
-            <p class="label">Current points</p>
-            <p class="value">{formatPoints($userStats?.currentPoints)}</p>
-            <span class="subtext"
-              >{formatPerSecond($userStats?.pointsPerSecond)}</span
-            >
+          <article>
+            <p>Current points</p>
+            <h4>
+              {formatPoints($userStats?.currentPoints)}
+              <strong>
+                ({formatPerSecond($userStats?.pointsPerSecond)})
+              </strong>
+            </h4>
           </article>
-          <article class="stats-card">
-            <p class="label">Staked NFTs</p>
-            <p class="value">
+          <article>
+            <p>Staked NFTs</p>
+            <h4>
               {($userStats?.stakedNFTCount ?? 0).toLocaleString()}
-            </p>
+            </h4>
           </article>
         </div>
-        <div class="stats-grid global">
-          <article class="stats-card compact">
-            <p class="label">Global voting power</p>
-            <p class="value">{formatBigInt($globalStats?.totalVotingPower)}</p>
+
+        <div class="stats flex">
+          <article>
+            <p>Global voting power</p>
+            <h4>{formatBigInt($globalStats?.totalVotingPower)}</h4>
           </article>
-          <article class="stats-card compact">
-            <p class="label">Total staked NFTs</p>
-            <p class="value">
+          <article>
+            <p>Total staked NFTs</p>
+            <h4>
               {($globalStats?.totalStakedNFTs ?? 0).toLocaleString()}
-            </p>
+            </h4>
           </article>
         </div>
       {/if}
 
-      <div class="status-row">
-        <span>{selectionCount} ready to stake</span>
-        <span>{availableCount} available</span>
-      </div>
-      <p class="helper-text">
-        Click “View stake data” on any NFT to inspect its lock, claim points
-        visibility, or unstake after unlock.
-      </p>
+      {#if availableCount}
+        <h5>{selectionCount}/{availableCount} NFTs selected for staking</h5>
+      {:else}
+        <h5>No NFTs available for staking</h5>
+      {/if}
 
       {#if $dataStatus === 'loading'}
         <p class="validation green-txt">Loading staking data…</p>
@@ -446,6 +446,11 @@
         </div>
       {/if}
 
+      <!-- <p class="helper-text">
+        Click “View stake data” on any NFT to inspect its lock, claim points
+        visibility, or unstake after unlock.
+      </p> -->
+
       <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
         {$busyStore === 'stake' ? 'Staking…' : 'Stake selected'}
       </button>
@@ -516,6 +521,39 @@
       width: 100%;
       border-top-left-radius: 0;
       border-top-right-radius: 0;
+
+      .stats {
+        width: 100%;
+        
+        article {
+          display: flex;
+          flex-flow: column nowrap;
+          align-items: flex-start;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 1rem;
+          border-radius: 0.5rem;;
+          @include white-txt;
+          @include gray-border;
+          @include purple(0.25);
+
+          p {
+            margin-bottom: 0.5rem;
+            @include font(caption);
+          }
+
+          h4 strong {
+            opacity: 0.5;
+            font-weight: normal;
+            @include font(body);
+          }
+        }
+
+        @include respond-up(tablet) {
+          flex-direction: row;
+          align-items: stretch;
+        }
+      }
     }
   }
 </style>
