@@ -295,7 +295,7 @@
     return value.toString();
   }
 
-  function formatPoints(value?: number | null, digits = 2) {
+  function formatPoints(value?: number | null, digits = 0) {
     if (value === undefined || value === null || Number.isNaN(value))
       return '0';
     return value.toLocaleString(undefined, {
@@ -304,9 +304,11 @@
     });
   }
 
-  function formatPerSecond(value?: number | null) {
-    if (!value) return '0 pts/s';
-    return `${value.toFixed(4)} pts/s`;
+  function formatPerDay(value?: number | null) {
+    if (value === undefined || value === null || Number.isNaN(value))
+      return '0 pts/day';
+    const perDay = value * 60 * 60 * 24;
+    return `${formatPoints(perDay)} pts/day`;
   }
 
   // Date conversion utility
@@ -319,7 +321,9 @@
 
 <h1 class="sr-only">Potentials Staking</h1>
 
-<h5 class="mar-inline">Select NFTs, choose a lock, and stake them together.</h5>
+<h5 class="mar-inline">
+  Select your Potentials, set a lock period, and stake.
+</h5>
 
 <section class="flex">
   {#if $connected}
@@ -348,16 +352,14 @@
       {#if $userStats || $globalStats}
         <div class="stats flex fade-in">
           <article class:loading-animation={$dataStatus === 'loading'}>
-            <p>Your voting power</p>
+            <p>Your Potential Power</p>
             <h4>{formatBigInt($userStats?.totalVotingPower)}</h4>
           </article>
           <article class:loading-animation={$dataStatus === 'loading'}>
             <p>Current points</p>
             <h4>
               {formatPoints($userStats?.currentPoints)}
-              <strong>
-                ({formatPerSecond($userStats?.pointsPerSecond)})
-              </strong>
+              <strong>({formatPerDay($userStats?.pointsPerSecond)})</strong>
             </h4>
           </article>
           <article class:loading-animation={$dataStatus === 'loading'}>
@@ -370,7 +372,7 @@
 
         <div class="stats flex">
           <article class:loading-animation={$dataStatus === 'loading'}>
-            <p>Global voting power</p>
+            <p>Global Potential Power</p>
             <h4>{formatBigInt($globalStats?.totalVotingPower)}</h4>
           </article>
           <article class:loading-animation={$dataStatus === 'loading'}>
@@ -423,8 +425,8 @@
 
               <span class="tile-data">
                 {#if token.isStaked}
-                  <p>Staked at {convertDate(token.stakedAt)}</p>
-                  <p>Unlocks at {convertDate(token.unlockTime)}</p>
+                  <p>Staked: {convertDate(token.stakedAt)}</p>
+                  <p>Unlocks: {convertDate(token.unlockTime)}</p>
                 {:else}
                   <label class="lock-label">
                     Lock period
@@ -486,7 +488,7 @@
   {:else}
     <div class="container">
       {#if $walletReady}
-        <h5>Connect your web3 wallet to load Potentials</h5>
+        <h5>Connect your wallet to load your inventory.</h5>
       {:else}
         <span class="flex-row gap">
           <LoadingSVG />
@@ -552,6 +554,7 @@
           @include purple(0.25);
 
           p {
+            text-transform: capitalize;
             margin-bottom: 0.5rem;
             @include font(caption);
           }
