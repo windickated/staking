@@ -30,12 +30,14 @@
   import ContractSVG from '@components/icons/Contract.svelte';
   import LoadingSVG from '@components/icons/Loading.svelte';
 
-  const LOCK_OPTIONS = [1, 3, 6, 12];
   const DEFAULT_LOCK = 6;
+  const MIN_LOCK = 1;
+  const MAX_LOCK = 12;
   const readOnlyStaking = stakingContract();
   const stakingReady = Boolean(readOnlyStaking?.target ?? STAKING_ADDRESS);
 
   let approved = $state(false);
+  let globalLockMonths = $state<number>(DEFAULT_LOCK);
 
   function isUnlockable(token: TokenState) {
     return (
@@ -217,15 +219,6 @@
     );
   }
 
-  function updateLock(tokenId: number, monthsValue: number) {
-    myTokens.update((tokens) =>
-      tokens.map((token) => {
-        if (token.tokenId !== tokenId || token.isStaked) return token;
-        return { ...token, lockMonths: monthsValue };
-      }),
-    );
-  }
-
   function onRefreshClick() {
     const current = $address;
     if (!current) return;
@@ -285,13 +278,17 @@
       return;
     }
 
-    const tokenIds = selection.map((token) => token.tokenId);
-    const months = selection.map((token) => token.lockMonths);
-
-    if (months.some((value) => !LOCK_OPTIONS.includes(value))) {
-      toastStore.show('Choose a valid lock duration for each NFT', 'error');
+    if (
+      !Number.isInteger(globalLockMonths) ||
+      globalLockMonths < MIN_LOCK ||
+      globalLockMonths > MAX_LOCK
+    ) {
+      toastStore.show('Choose a lock duration between 1 and 12 months', 'error');
       return;
     }
+
+    const tokenIds = selection.map((token) => token.tokenId);
+    const months = Array(tokenIds.length).fill(globalLockMonths);
 
     busyStore.set('stake');
 
@@ -469,6 +466,24 @@
         <h4>
           {availableCount} / {$myTokens.length} NFTs available for staking
         </h4>
+
+        <div class="lock-slider flex gap-8">
+          <label for="lock-period">
+            Lock period:
+            <strong class="lock-value">
+              {globalLockMonths} {globalLockMonths === 1 ? 'month' : 'months'}
+            </strong>
+          </label>
+          <input
+            id="lock-period"
+            type="range"
+            min={MIN_LOCK}
+            max={MAX_LOCK}
+            step="1"
+            bind:value={globalLockMonths}
+          />
+        </div>
+
         <span class="flex-row flex-wrap">
           <ContractSVG
             onclick={handleApprove}
@@ -516,7 +531,7 @@
               class:potential-tile={stakeSelectable && !token.selected}
               class:green-tile={token.selected && selectable}
               class:gray-tile={disabledTile}
-              class:unlockable={token.isStaked && unlockable}
+              class:rose-tile={token.isStaked && unlockable}
               disabled={!selectable}
               onclick={() => toggleSelection(token.tokenId, !token.selected)}
               aria-label={`Select token ${token.tokenId}`}
@@ -527,33 +542,12 @@
               />
               <h5>Potential #{token.tokenId}</h5>
 
-              <span class="tile-data">
-                {#if token.isStaked}
+              {#if token.isStaked}
+                <span class="tile-data">
                   <p>Staked: {convertDate(token.stakedAt)}</p>
                   <p>Unlocks: {convertDate(token.unlockTime)}</p>
-                {:else}
-                  <label class="lock-label">
-                    Lock period
-                    <select
-                      value={token.lockMonths}
-                      disabled={token.isStaked || $pausedStore}
-                      onchange={(event) =>
-                        updateLock(
-                          token.tokenId,
-                          Number(event.currentTarget.value),
-                        )}
-                      onclick={(e) => e.stopPropagation()}
-                    >
-                      {#each LOCK_OPTIONS as months}
-                        <option value={months}>
-                          {months}
-                          {months === 1 ? 'month' : 'months'}
-                        </option>
-                      {/each}
-                    </select>
-                  </label>
-                {/if}
-              </span>
+                </span>
+              {/if}
 
               {#if token.isStaked}
                 {#if unlockable}
@@ -579,6 +573,7 @@
               {#if stakeSelectionCount}
                 ({stakeSelectionCount})
               {/if}
+              for {globalLockMonths} {globalLockMonths === 1 ? 'month' : 'months'}
             {/if}
           </button>
           <button
@@ -700,6 +695,14 @@
               height: 80vw;
             }
           }
+        }
+      }
+
+      .lock-slider {
+        width: 100%;
+
+        input[type='range'] {
+          width: min(25rem, 100%);
         }
       }
     }

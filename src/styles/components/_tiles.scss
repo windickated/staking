@@ -402,18 +402,6 @@
   }
 }
 
-.rose-tile {
-  @extend .tile;
-  @include rose(0.85);
-
-  &:hover:not(&:disabled),
-  &:active:not(&:disabled),
-  &:focus-visible:not(&:disabled) {
-    @include rose;
-    @include dark-red(1, text);
-  }
-}
-
 .orange-tile {
   @extend .tile;
   @include orange(0.85);
@@ -435,6 +423,18 @@
   &:focus-visible:not(&:disabled) {
     @include light-blue(0.5);
     @include cyan(1, text);
+  }
+}
+
+.rose-tile {
+  @extend .tile;
+  @include rose(0.85);
+
+  &:hover:not(&:disabled),
+  &:active:not(&:disabled),
+  &:focus-visible:not(&:disabled) {
+    @include rose;
+    @include dark-red(1, text);
   }
 }
 
