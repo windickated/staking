@@ -14,7 +14,12 @@
     busy as busyStore,
     isPaused as pausedStore,
   } from '@stores/web3.svelte';
-  import { stakingContract, isPaused, stakeTokens } from '@lib/staking';
+  import {
+    stakingContract,
+    isPaused,
+    stakeTokens,
+    unstakeTokens,
+  } from '@lib/staking';
   import { getUserStakingData, getGlobalStats } from '@lib/indexer';
   import { getOwnedTokenSet } from '@lib/potentials';
   import { STAKING_ADDRESS } from '@lib/contract';
@@ -32,10 +37,24 @@
 
   let approved = $state(false);
 
-  const selectedTokens = $derived(
+  function isUnlockable(token: TokenState) {
+    return (
+      token.isStaked &&
+      token.unlockTime > 0 &&
+      token.unlockTime <= Math.floor(Date.now() / 1000)
+    );
+  }
+
+  const stakeSelection = $derived(
     $myTokens.filter((token) => token.selected && !token.isStaked),
   );
-  const selectionCount = $derived(selectedTokens.length);
+  const stakeSelectionCount = $derived(stakeSelection.length);
+  const unstakeSelection = $derived(
+    $myTokens.filter(
+      (token) => token.selected && token.isStaked && isUnlockable(token),
+    ),
+  );
+  const unstakeSelectionCount = $derived(unstakeSelection.length);
   const availableCount = $derived(
     $myTokens.filter((token) => !token.isStaked).length,
   );
@@ -43,8 +62,14 @@
     !$connected ||
       !stakingReady ||
       !approved ||
-      !selectionCount ||
+      !stakeSelectionCount ||
       $pausedStore ||
+      $busyStore !== 'idle',
+  );
+  const unstakingDisabled = $derived(
+    !$connected ||
+      !stakingReady ||
+      !unstakeSelectionCount ||
       $busyStore !== 'idle',
   );
   const approveDisabled = $derived(
@@ -167,10 +192,27 @@
 
   // UI-only selection helpers (non-staked tokens only).
   function toggleSelection(tokenId: number, selectedValue: boolean) {
+    const paused = $pausedStore;
     myTokens.update((tokens) =>
       tokens.map((token) => {
-        if (token.tokenId !== tokenId || token.isStaked) return token;
+        if (token.tokenId !== tokenId) return token;
+
+        const unlockable = isUnlockable(token);
+        const stakeSelectable = !token.isStaked && !paused;
+        const unstakeSelectable = token.isStaked && unlockable;
+        if (!stakeSelectable && !unstakeSelectable) return token;
+
         return { ...token, selected: selectedValue };
+      }),
+    );
+  }
+
+  function selectAllForStaking() {
+    if ($pausedStore) return;
+    myTokens.update((tokens) =>
+      tokens.map((token) => {
+        if (token.isStaked) return token;
+        return { ...token, selected: true };
       }),
     );
   }
@@ -237,7 +279,7 @@
       return;
     }
 
-    const selection = selectedTokens;
+    const selection = stakeSelection;
     if (!selection.length) {
       toastStore.show('Select at least one NFT to stake', 'error');
       return;
@@ -263,6 +305,45 @@
     } catch (err) {
       console.error(err);
       toastStore.show('Staking transaction failed', 'error');
+    } finally {
+      busyStore.set('idle');
+    }
+  }
+
+  async function handleUnstake() {
+    if (!stakingReady) {
+      toastStore.show('Set PUBLIC_STAKING_ADDRESS to continue', 'error');
+      return;
+    }
+
+    const current = $address;
+    const currentProvider = $provider as BrowserProvider | null;
+
+    if (!current || !currentProvider) {
+      toastStore.show('Connect a wallet first', 'error');
+      return;
+    }
+
+    const selection = unstakeSelection;
+    if (!selection.length) {
+      toastStore.show('Select at least one unlockable NFT to unstake', 'error');
+      return;
+    }
+
+    const tokenIds = selection.map((token) => token.tokenId);
+
+    busyStore.set('unstake');
+
+    try {
+      const signer = await currentProvider.getSigner();
+      await unstakeTokens(signer, tokenIds);
+      toastStore.show(
+        `Unstaked ${tokenIds.length} NFT${tokenIds.length > 1 ? 's' : ''} successfully`,
+      );
+      await loadStakingData(current);
+    } catch (err) {
+      console.error(err);
+      toastStore.show('Unstaking transaction failed', 'error');
     } finally {
       busyStore.set('idle');
     }
@@ -388,6 +469,23 @@
         <h4>
           {availableCount} / {$myTokens.length} NFTs available for staking
         </h4>
+        <span class="flex-row flex-wrap">
+          <ContractSVG
+            onclick={handleApprove}
+            text={approved
+              ? 'Approved'
+              : $busyStore === 'approve'
+                ? 'Approving…'
+                : 'Approve staking contract'}
+            disabled={approveDisabled}
+          />
+          <button
+            onclick={selectAllForStaking}
+            disabled={$pausedStore || !availableCount || $busyStore !== 'idle'}
+          >
+            Select all to stake
+          </button>
+        </span>
       {:else if $myTokens.length}
         <h4>All {$myTokens.length} NFTs are currently staked</h4>
       {/if}
@@ -406,14 +504,20 @@
       {:else}
         <div class="nfts-wrapper flex-row flex-wrap gap fade-in">
           {#each $myTokens as token (token.tokenId)}
+            {@const unlockable = isUnlockable(token)}
+            {@const stakeSelectable = !token.isStaked && !$pausedStore}
+            {@const unstakeSelectable = token.isStaked && unlockable}
+            {@const selectable = stakeSelectable || unstakeSelectable}
+            {@const disabledTile =
+              (!selectable && token.isStaked) ||
+              (!token.isStaked && $pausedStore)}
             <button
               class="void-btn"
-              class:potential-tile={!token.isStaked &&
-                !token.selected &&
-                !$pausedStore}
-              class:green-tile={token.selected}
-              class:gray-tile={token.isStaked || $pausedStore}
-              disabled={token.isStaked || $pausedStore}
+              class:potential-tile={stakeSelectable && !token.selected}
+              class:green-tile={token.selected && selectable}
+              class:gray-tile={disabledTile}
+              class:unlockable={token.isStaked && unlockable}
+              disabled={!selectable}
               onclick={() => toggleSelection(token.tokenId, !token.selected)}
               aria-label={`Select token ${token.tokenId}`}
             >
@@ -452,7 +556,11 @@
               </span>
 
               {#if token.isStaked}
-                <p class="validation">Staked</p>
+                {#if unlockable}
+                  <p class="validation">Ready to unstake</p>
+                {:else}
+                  <p class="validation">Staked</p>
+                {/if}
               {:else if token.selected}
                 <p class="validation">Selected</p>
               {:else}
@@ -463,22 +571,27 @@
         </div>
 
         <span class="flex-row flex-wrap">
-          <ContractSVG
-            onclick={handleApprove}
-            text={approved
-              ? 'Approved'
-              : $busyStore === 'approve'
-                ? 'Approving…'
-                : 'Approve staking contract'}
-            disabled={approveDisabled}
-          />
           <button class="cta" onclick={handleStake} disabled={stakingDisabled}>
             {#if $busyStore === 'stake'}
               Staking…
             {:else}
               Stake selected NFTs
-              {#if selectionCount}
-                ({selectionCount})
+              {#if stakeSelectionCount}
+                ({stakeSelectionCount})
+              {/if}
+            {/if}
+          </button>
+          <button
+            class="cta green-btn"
+            onclick={handleUnstake}
+            disabled={unstakingDisabled}
+          >
+            {#if $busyStore === 'unstake'}
+              Unstaking…
+            {:else}
+              Unstake selected NFTs
+              {#if unstakeSelectionCount}
+                ({unstakeSelectionCount})
               {/if}
             {/if}
           </button>

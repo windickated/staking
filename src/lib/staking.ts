@@ -26,3 +26,10 @@ export async function stakeTokens(
   const tx = await c.stake(tokenIds, months);
   return await tx.wait();
 }
+
+export async function unstakeTokens(signer: ethers.Signer, tokenIds: number[]) {
+  if (tokenIds.length === 0) throw new Error('No tokens selected');
+  const c = stakingContract(signer);
+  const tx = await c.unstake(tokenIds);
+  return await tx.wait();
+}
